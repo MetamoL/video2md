@@ -48,6 +48,10 @@ python video2md.py "https://youtu.be/jNQXAC9IVRw" -o notes --model gemini-3.6-fl
 
 長い動画の解析には数分かかることがあります。APIがHTTP 429、500、503を返した場合は、20秒後に1回だけ再試行します。
 
+## 出力例
+
+[examples/me-at-the-zoo.ja.md](examples/me-at-the-zoo.ja.md)（YouTube史上最初の動画を変換した実出力）
+
 ## ライセンス
 
 [MIT](LICENSE)
