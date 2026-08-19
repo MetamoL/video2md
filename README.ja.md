@@ -94,6 +94,7 @@ python video2md.py "https://youtu.be/VIDEO_ID" --model NEW_MODEL_NAME
 ## 出力例
 
 - [examples/python-in-100-seconds.ja.md](examples/python-in-100-seconds.ja.md) — 画面上のコードを変数名まで読み取った例
+- [examples/neural-network-19min.ja.md](examples/neural-network-19min.ja.md) — 19分動画。逐語の文字起こしが拒否され、要点形式へ自動フォールバックした例
 - [examples/me-at-the-zoo.ja.md](examples/me-at-the-zoo.ja.md) — YouTube史上最初の動画を変換した実出力
 
 ## ライセンス

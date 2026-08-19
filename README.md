@@ -16,7 +16,7 @@ Unlike Whisper-based transcription tools, video2md also reads the visual content
 
 ## Example output
 
-See [examples/](examples/) — including [me-at-the-zoo.en.md](examples/me-at-the-zoo.en.md) (the first video ever uploaded to YouTube) and [python-in-100-seconds.ja.md](examples/python-in-100-seconds.ja.md) (a tech video with on-screen code, read verbatim).
+See [examples/](examples/) — including [me-at-the-zoo.en.md](examples/me-at-the-zoo.en.md) (the first video ever uploaded to YouTube), [python-in-100-seconds.ja.md](examples/python-in-100-seconds.ja.md) (a tech video with on-screen code, read verbatim), and [neural-network-19min.ja.md](examples/neural-network-19min.ja.md) (a 19-minute video saved via the automatic key-points fallback).
 
 ## Requirements
 
