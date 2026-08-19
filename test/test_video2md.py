@@ -81,6 +81,29 @@ class TestBuildPayload(unittest.TestCase):
         )
         self.assertIn("専門用語は英語のまま", payload["contents"][0]["parts"][1]["text"])
 
+    def test_lang_ja_is_default(self):
+        url = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+        default_text = video2md.build_payload(url, None)["contents"][0]["parts"][1]["text"]
+        ja_text = video2md.build_payload(url, None, lang="ja")["contents"][0]["parts"][1]["text"]
+        self.assertEqual(default_text, ja_text)
+
+    def test_lang_en_prompt(self):
+        payload = video2md.build_payload(
+            "https://www.youtube.com/watch?v=jNQXAC9IVRw", None, lang="en"
+        )
+        text = payload["contents"][0]["parts"][1]["text"]
+        # 英語プロンプトは英語見出しを指示し、日本語見出しを含まない
+        self.assertIn("Summary", text)
+        self.assertIn("Visuals", text)
+        self.assertIn("Transcript", text)
+        self.assertNotIn("概要", text)
+
+    def test_lang_en_with_extra(self):
+        payload = video2md.build_payload(
+            "https://www.youtube.com/watch?v=jNQXAC9IVRw", "Keep jargon as-is", lang="en"
+        )
+        self.assertIn("Keep jargon as-is", payload["contents"][0]["parts"][1]["text"])
+
 
 class TestExtractMarkdown(unittest.TestCase):
     def test_joins_all_text_parts(self):
