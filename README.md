@@ -1,40 +1,78 @@
 # video2md
 
-YouTube動画の音声と映像をGemini APIで解析し、概要・画面内容・文字起こしをMarkdownに保存する単体CLIツールです。Python 3.12の標準ライブラリだけで動作します。
+Turn any YouTube video into an AI-readable Markdown document — audio **and** visuals — powered by the Gemini API.
 
-## 前提
+日本語版: [README.ja.md](README.ja.md)
 
-- Python 3.12
-- Gemini APIキー
+## What it does
 
-Windowsでは、APIキーを環境変数 `GEMINI_API_KEY` に設定してください。
+video2md sends a YouTube video directly to Gemini and saves a structured Markdown document with:
+
+- **Summary** — a concise overview of the entire video.
+- **Visuals** — timestamped descriptions of slides, charts, demos, code, captions, scenery, and other on-screen information.
+- **Transcript** — a timestamped transcript in the original spoken language.
+
+Unlike Whisper-based transcription tools, video2md also reads the visual content of the video.
+
+## Example output
+
+See [examples/me-at-the-zoo.en.md](examples/me-at-the-zoo.en.md).
+
+## Requirements
+
+- Python 3.12 or later
+- A Gemini API key
+- No third-party Python packages
+
+The tool can run with the Gemini API free tier, subject to its current availability and quota limits.
+
+## Setup
+
+Create an API key in [Google AI Studio](https://aistudio.google.com/apikey), then set it as `GEMINI_API_KEY`.
+
+Windows PowerShell:
 
 ```powershell
-setx GEMINI_API_KEY "あなたのAPIキー"
+setx GEMINI_API_KEY "your-api-key"
 ```
 
-`setx` の実行後は、新しいターミナルを開いてください。本ツールは未反映の場合にユーザー環境変数も直接確認します。
+Open a new terminal after running `setx`. On Windows, video2md also checks the current user's stored environment variables when the key has not yet reached the running process.
 
-## 使い方
+macOS or Linux:
 
-```powershell
-python video2md.py "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+```bash
+export GEMINI_API_KEY="your-api-key"
 ```
 
-省略時は `video2md.py` と同じ場所の `out` フォルダーに、動画タイトルを使ったMarkdownファイルを保存します。同名ファイルがある場合は `-2`、`-3` のような番号を付け、既存ファイルを残します。
+Add the `export` command to your shell profile if you want it to persist across terminal sessions.
+
+## Usage
 
 ```text
-python video2md.py <URL> [-o OUTDIR] [--model MODEL] [--extra "追加指示"]
+python video2md.py <URL> [-o OUTDIR] [--model MODEL] [--lang {ja,en}] [--extra "INSTRUCTION"]
 ```
 
-- `-o OUTDIR`: 保存先フォルダーを指定します。
-- `--model MODEL`: Geminiモデルを指定します。既定値は `gemini-3.6-flash` です（2026-08時点。APIが「no longer available」を返したら、そのエラー文中の新モデル名に追随する）。
-- `--extra "追加指示"`: 解析用プロンプトの末尾に任意の指示を追加します。
+Example:
 
-例:
-
-```powershell
-python video2md.py "https://youtu.be/jNQXAC9IVRw" -o notes --model gemini-3.6-flash --extra "専門用語は英語のまま記載する"
+```bash
+python video2md.py "https://youtu.be/jNQXAC9IVRw" --lang en
 ```
 
-長い動画の解析には数分かかることがあります。APIがHTTP 429、500、503を返した場合は、20秒後に1回だけ再試行します。
+| Option | Description | Default |
+| --- | --- | --- |
+| `-o`, `--outdir` | Output directory | `out` next to `video2md.py` |
+| `--model` | Gemini model name | `gemini-3.6-flash` |
+| `--lang` | Output language: `ja` or `en` | `ja` |
+| `--extra` | Additional instruction appended to the selected prompt | None |
+
+Files are named after the YouTube title. Existing files are preserved by adding suffixes such as `-2` and `-3`.
+
+## Notes
+
+- Long videos can take several minutes to process.
+- For HTTP 429, 500, or 503 responses, video2md waits 20 seconds and retries once.
+- If a model name returns HTTP 404 because it is no longer available, use the replacement model named in the API error message with `--model`.
+
+## License
+
+[MIT](LICENSE)

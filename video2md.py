@@ -26,6 +26,16 @@ PROMPT = """この動画を解析し、以下の構成のMarkdownを出力して
 
 ## 文字起こし
 発話の全文をタイムスタンプ [MM:SS] 付きで、元の言語のまま書き起こす。話者が複数いる場合は「話者A:」のように区別する。相槌や言い直しは軽く整えてよいが、内容の省略はしない。"""
+PROMPT_EN = """Analyze this video and output Markdown in the following structure. Output only the Markdown body, with no preamble, closing remarks, or code fences. Start headings at ## (do not use #).
+
+## Summary
+A summary of the entire video in 10 lines or fewer.
+
+## Visuals
+Visual information shown on screen (slides, charts, demos, code, captions, scenery, etc.) as bullet points with [MM:SS] timestamps. Prioritize visual information that does not duplicate the speech.
+
+## Transcript
+The full transcript with [MM:SS] timestamps, in the original spoken language. If there are multiple speakers, label them "Speaker A:" etc. Light cleanup of fillers and false starts is fine, but do not omit content."""
 
 
 class GeminiAPIError(Exception):
@@ -76,10 +86,17 @@ def extract_video_id(url: str) -> str | None:
     return None
 
 
-def build_payload(url: str, extra: str | None) -> dict[str, Any]:
+def build_payload(
+    url: str, extra: str | None, lang: str = "ja"
+) -> dict[str, Any]:
     """Gemini generateContent用のリクエスト本文を組み立てる。"""
 
-    prompt = PROMPT
+    if lang == "ja":
+        prompt = PROMPT
+    elif lang == "en":
+        prompt = PROMPT_EN
+    else:
+        raise ValueError(f"未対応の出力言語です: {lang}")
     if extra:
         prompt += "\n" + extra
     return {
@@ -160,11 +177,17 @@ def _response_body(http_error: error.HTTPError) -> str:
         return "（応答本文を読み取れませんでした）"
 
 
-def call_gemini(url: str, model: str, api_key: str, extra: str | None) -> str:
+def call_gemini(
+    url: str,
+    model: str,
+    api_key: str,
+    extra: str | None,
+    lang: str = "ja",
+) -> str:
     """Gemini APIを呼び、生成されたMarkdownを返す。"""
 
     endpoint = f"{API_ROOT}/{parse.quote(model, safe='')}:generateContent"
-    data = json.dumps(build_payload(url, extra), ensure_ascii=False).encode("utf-8")
+    data = json.dumps(build_payload(url, extra, lang), ensure_ascii=False).encode("utf-8")
     req = request.Request(
         endpoint,
         data=data,
@@ -218,6 +241,12 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("url", metavar="URL", help="解析するYouTube動画のURL")
     parser.add_argument("-o", "--outdir", type=Path, help="保存先ディレクトリ")
     parser.add_argument("--model", default=DEFAULT_MODEL, help="使用するGeminiモデル")
+    parser.add_argument(
+        "--lang",
+        choices=["ja", "en"],
+        default="ja",
+        help="出力言語 / output language",
+    )
     parser.add_argument("--extra", help="Geminiへの追加指示")
     return parser
 
@@ -234,7 +263,7 @@ def main(argv: list[str] | None = None) -> int:
     title = fetch_video_title(args.url, video_id)
     print("Gemini解析中…（動画が長いと数分かかります）")
     try:
-        markdown = call_gemini(args.url, args.model, api_key, args.extra)
+        markdown = call_gemini(args.url, args.model, api_key, args.extra, args.lang)
     except GeminiAPIError as exc:
         status = f"HTTP {exc.status}" if exc.status is not None else "通信エラー"
         print(f"Gemini APIの呼び出しに失敗しました（{status}）。", file=sys.stderr)
@@ -248,14 +277,19 @@ def main(argv: list[str] | None = None) -> int:
     try:
         outdir.mkdir(parents=True, exist_ok=True)
         output = unique_path(outdir, sanitize_filename(title))
-        document = (
-            f"# {title}\n\n"
-            f"- 元動画: {args.url}\n"
-            f"- 取得日: {dt.date.today().isoformat()}\n"
-            f"- モデル: {args.model}\n\n"
-            f"---\n\n"
-            f"{markdown}"
-        )
+        if args.lang == "en":
+            metadata = (
+                f"- Source: {args.url}\n"
+                f"- Date: {dt.date.today().isoformat()}\n"
+                f"- Model: {args.model}"
+            )
+        else:
+            metadata = (
+                f"- 元動画: {args.url}\n"
+                f"- 取得日: {dt.date.today().isoformat()}\n"
+                f"- モデル: {args.model}"
+            )
+        document = f"# {title}\n\n{metadata}\n\n---\n\n{markdown}"
         output.write_text(document, encoding="utf-8")
     except OSError as exc:
         print(f"Markdownの保存に失敗しました: {exc}", file=sys.stderr)
