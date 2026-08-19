@@ -61,6 +61,12 @@ class TestSanitizeFilename(unittest.TestCase):
         self.assertEqual(video2md.sanitize_filename("Console"), "Console")
         self.assertEqual(video2md.sanitize_filename("COM10"), "COM10")
 
+    def test_reserved_name_with_extension_neutralized(self):
+        # Windowsは「CON.txt」も予約扱い（最初のドットまでがデバイス名）
+        # デバイス名の直後に -video を挟んで無害化する
+        self.assertEqual(video2md.sanitize_filename("CON.txt"), "CON-video.txt")
+        self.assertEqual(video2md.sanitize_filename("aux.mp4"), "aux-video.mp4")
+
 
 class TestExtractVideoId(unittest.TestCase):
     def test_watch_url(self):
@@ -275,6 +281,22 @@ class TestGetApiKey(unittest.TestCase):
         self.assertEqual(cm.exception.code, 3)
         # 非Windowsではexportを案内（setxではなく）
         self.assertIn("export", buf.getvalue())
+
+
+class TestCallGeminiExceptionNormalization(unittest.TestCase):
+    def test_connection_reset_normalized_to_gemini_api_error(self):
+        # urlopen段・読み取り段で素のOSError（ConnectionResetError等）が出ても
+        # tracebackで死なず GeminiAPIError に正規化される
+        with mock.patch.object(
+            video2md.request, "urlopen", side_effect=ConnectionResetError(10054, "reset")
+        ):
+            with self.assertRaises(video2md.GeminiAPIError):
+                video2md.call_gemini(
+                    "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+                    "test-model",
+                    "dummy-key",
+                    None,
+                )
 
 
 class TestMainArgHandling(unittest.TestCase):

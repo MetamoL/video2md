@@ -49,7 +49,7 @@ Add the `export` command to your shell profile if you want it to persist across 
 ## Usage
 
 ```text
-python video2md.py <URL> [-o OUTDIR] [--model MODEL] [--lang {ja,en}] [--extra "INSTRUCTION"]
+python video2md.py <URL> [-o OUTDIR] [--model MODEL] [--lang {ja,en}] [--digest] [--extra "INSTRUCTION"]
 ```
 
 Example:
@@ -63,6 +63,7 @@ python video2md.py "https://youtu.be/jNQXAC9IVRw" --lang en
 | `-o`, `--outdir` | Output directory | `out` next to `video2md.py` |
 | `--model` | Gemini model name | `gemini-3.6-flash` |
 | `--lang` | Output language: `ja` or `en` | `ja` |
+| `--digest` | Summarize speech as timestamped key points instead of a verbatim transcript | Off |
 | `--extra` | Additional instruction appended to the selected prompt | None |
 
 Files are named after the YouTube title. Existing files are preserved by adding suffixes such as `-2` and `-3`.
@@ -70,8 +71,41 @@ Files are named after the YouTube title. Existing files are preserved by adding 
 ## Notes
 
 - Long videos can take several minutes to process.
-- For HTTP 429, 500, or 503 responses, video2md waits 20 seconds and retries once.
-- If a model name returns HTTP 404 because it is no longer available, use the replacement model named in the API error message with `--model`.
+- For HTTP 429, 500, 502, 503, or 504 responses, video2md waits 20 seconds and retries once. Connection failures are retried once as well.
+- With a retry and automatic digest fallback, a single run can take tens of minutes in the worst case.
+- CLI progress, warnings, and error messages are in Japanese. `--lang` controls the generated document, not CLI messages.
+
+## Troubleshooting
+
+### RECITATION or an empty transcript
+
+Gemini can reject verbatim transcription of a long video with `finishReason: RECITATION`. video2md automatically retries once using the key-points prompt. You can select that mode from the start with `--digest`:
+
+```bash
+python video2md.py "https://youtu.be/VIDEO_ID" --digest
+```
+
+### HTTP 404 for the model
+
+Gemini model names change between generations. If the current model returns HTTP 404, use the replacement model named in the API error message:
+
+```bash
+python video2md.py "https://youtu.be/VIDEO_ID" --model NEW_MODEL_NAME
+```
+
+### Output streams and exit codes
+
+On exit code 0, stdout contains exactly one machine-readable line: the absolute path of the saved file. All progress, retry notices, warnings, and errors go to stderr. If saving fails with exit code 1, stdout contains the recovered Markdown document instead of a path. Therefore, stdout is machine-readable as a path only when the exit code is 0.
+
+| Code | Meaning |
+| --- | --- |
+| 0 | Success, including success with warnings; stdout is the absolute output path |
+| 1 | Saving failed; stdout is the full Markdown document |
+| 2 | Invalid arguments or YouTube URL |
+| 3 | API key missing or malformed |
+| 4 | Gemini API or network failure |
+| 5 | Model refusal, including RECITATION when no body can be recovered |
+| 130 | Interrupted by the user |
 
 ## License
 
