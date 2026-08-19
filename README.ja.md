@@ -1,6 +1,6 @@
 # video2md
 
-English: [README.md](README.md)
+English: [README.md](README.md)／紹介記事: [Zenn](https://zenn.dev/metamol/articles/5cdf6a649ed1bc)
 
 YouTube動画の音声と映像をGemini APIで解析し、概要、画面内容、文字起こしをMarkdownに保存する単体CLIツールです。
 Python 3.12の標準ライブラリだけで動作します。

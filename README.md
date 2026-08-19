@@ -2,7 +2,7 @@
 
 Turn any YouTube video into an AI-readable Markdown document — audio **and** visuals — powered by the Gemini API.
 
-日本語版: [README.ja.md](README.ja.md)
+日本語版: [README.ja.md](README.ja.md) / Intro article (Japanese): [Zenn](https://zenn.dev/metamol/articles/5cdf6a649ed1bc)
 
 ## What it does
 
