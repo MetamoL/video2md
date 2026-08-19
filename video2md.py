@@ -14,7 +14,7 @@ from typing import Any
 from urllib import error, parse, request
 
 
-DEFAULT_MODEL = "gemini-2.5-flash"
+DEFAULT_MODEL = "gemini-3.6-flash"
 API_ROOT = "https://generativelanguage.googleapis.com/v1beta/models"
 PROMPT = """この動画を解析し、以下の構成のMarkdownを出力してください。Markdown本文のみを出力し、前置き・後書き・コードフェンスは不要。見出しは ## から始める（# は使わない）。
 

@@ -28,13 +28,13 @@ python video2md.py <URL> [-o OUTDIR] [--model MODEL] [--extra "追加指示"]
 ```
 
 - `-o OUTDIR`: 保存先フォルダーを指定します。
-- `--model MODEL`: Geminiモデルを指定します。既定値は `gemini-2.5-flash` です。
+- `--model MODEL`: Geminiモデルを指定します。既定値は `gemini-3.6-flash` です（2026-08時点。APIが「no longer available」を返したら、そのエラー文中の新モデル名に追随する）。
 - `--extra "追加指示"`: 解析用プロンプトの末尾に任意の指示を追加します。
 
 例:
 
 ```powershell
-python video2md.py "https://youtu.be/jNQXAC9IVRw" -o notes --model gemini-2.5-flash --extra "専門用語は英語のまま記載する"
+python video2md.py "https://youtu.be/jNQXAC9IVRw" -o notes --model gemini-3.6-flash --extra "専門用語は英語のまま記載する"
 ```
 
 長い動画の解析には数分かかることがあります。APIがHTTP 429、500、503を返した場合は、20秒後に1回だけ再試行します。
