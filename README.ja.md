@@ -50,7 +50,8 @@ python video2md.py "https://youtu.be/jNQXAC9IVRw" -o notes --model gemini-3.6-fl
 
 ## 出力例
 
-[examples/me-at-the-zoo.ja.md](examples/me-at-the-zoo.ja.md)（YouTube史上最初の動画を変換した実出力）
+- [examples/python-in-100-seconds.ja.md](examples/python-in-100-seconds.ja.md) — 画面上のコードを変数名まで読み取った例
+- [examples/me-at-the-zoo.ja.md](examples/me-at-the-zoo.ja.md) — YouTube史上最初の動画を変換した実出力
 
 ## ライセンス
 
