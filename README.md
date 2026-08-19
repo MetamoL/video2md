@@ -1,0 +1,40 @@
+# video2md
+
+YouTube動画の音声と映像をGemini APIで解析し、概要・画面内容・文字起こしをMarkdownに保存する単体CLIツールです。Python 3.12の標準ライブラリだけで動作します。
+
+## 前提
+
+- Python 3.12
+- Gemini APIキー
+
+Windowsでは、APIキーを環境変数 `GEMINI_API_KEY` に設定してください。
+
+```powershell
+setx GEMINI_API_KEY "あなたのAPIキー"
+```
+
+`setx` の実行後は、新しいターミナルを開いてください。本ツールは未反映の場合にユーザー環境変数も直接確認します。
+
+## 使い方
+
+```powershell
+python video2md.py "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+```
+
+省略時は `video2md.py` と同じ場所の `out` フォルダーに、動画タイトルを使ったMarkdownファイルを保存します。同名ファイルがある場合は `-2`、`-3` のような番号を付け、既存ファイルを残します。
+
+```text
+python video2md.py <URL> [-o OUTDIR] [--model MODEL] [--extra "追加指示"]
+```
+
+- `-o OUTDIR`: 保存先フォルダーを指定します。
+- `--model MODEL`: Geminiモデルを指定します。既定値は `gemini-2.5-flash` です。
+- `--extra "追加指示"`: 解析用プロンプトの末尾に任意の指示を追加します。
+
+例:
+
+```powershell
+python video2md.py "https://youtu.be/jNQXAC9IVRw" -o notes --model gemini-2.5-flash --extra "専門用語は英語のまま記載する"
+```
+
+長い動画の解析には数分かかることがあります。APIがHTTP 429、500、503を返した場合は、20秒後に1回だけ再試行します。
