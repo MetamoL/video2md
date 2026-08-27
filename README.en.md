@@ -76,7 +76,7 @@ Register the local MCP server to call video2md directly from a conversation with
 claude mcp add video2md -- python C:\path\to\video2md\mcp_server.py
 ```
 
-After registration, ask something like “Explain this topic based on the video https://youtu.be/VIDEO_ID.” No hosting is required; the only potential cost is the Gemini API used by the local process.
+After registration, ask something like “Explain this topic based on the video `https://youtu.be/VIDEO_ID`.” No hosting is required; the only potential cost is the Gemini API used by the local process.
 
 Long videos can take several minutes, so set a sufficiently long timeout in your MCP client (Claude Code uses the `MCP_TIMEOUT` environment variable).
 

@@ -65,7 +65,7 @@ APIがHTTP 429、500、502、503、504を返した場合と接続に失敗した
 claude mcp add video2md -- python C:\path\to\video2md\mcp_server.py
 ```
 
-登録後は、会話で「この動画の内容を踏まえて説明して https://youtu.be/VIDEO_ID」のように頼むだけです。
+登録後は、会話で「この動画の内容を踏まえて説明して `https://youtu.be/VIDEO_ID`」のように頼むだけです。
 サーバーのホスティングは不要で、費用が発生し得るのはローカル実行から利用するGemini APIだけです。
 
 長い動画は完了まで数分かかるため、MCPクライアント側のタイムアウトを十分長く設定してください（Claude Codeでは環境変数 `MCP_TIMEOUT` を使用します）。
