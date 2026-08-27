@@ -111,6 +111,23 @@ class TestExtractVideoId(unittest.TestCase):
         self.assertIsNone(video2md.extract_video_id("https://example.com/watch?v=x"))
 
 
+class TestCanonicalVideoUrl(unittest.TestCase):
+    def test_returns_id_only_watch_url(self):
+        self.assertEqual(
+            video2md.canonical_video_url("jNQXAC9IVRw"),
+            "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+        )
+
+    def test_strips_share_queries_via_extract(self):
+        video_id = video2md.extract_video_id(
+            "https://youtu.be/jNQXAC9IVRw?si=abc123&t=42"
+        )
+        self.assertEqual(
+            video2md.canonical_video_url(video_id),
+            "https://www.youtube.com/watch?v=jNQXAC9IVRw",
+        )
+
+
 class TestBuildPayload(unittest.TestCase):
     URL = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
 

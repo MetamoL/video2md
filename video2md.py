@@ -133,6 +133,17 @@ def extract_video_id(url: str) -> str | None:
     return None
 
 
+def canonical_video_url(video_id: str) -> str:
+    """Geminiへ渡すYouTube URLを動画IDだけの標準形にする。
+
+    YouTube自身は ``t`` や ``si`` などの共有用クエリを受け付けるが、
+    Geminiの ``file_uri`` はそれらを含むURLをHTTP 400で拒否する場合がある。
+    動画IDは事前に検証済みなので、解析対象を変えずに付加情報だけを除去する。
+    """
+
+    return f"https://www.youtube.com/watch?v={video_id}"
+
+
 def build_payload(
     url: str,
     extra: str | None,
@@ -470,17 +481,18 @@ def _run(argv: list[str] | None) -> int:
     if video_id is None:
         _stderr("エラー: 対応しているYouTube動画のURLを指定してください。")
         return 2
+    api_url = canonical_video_url(video_id)
 
     api_key = get_api_key()
     _stderr("動画タイトルを取得中…")
-    title = fetch_video_title(args.url, video_id)
+    title = fetch_video_title(api_url, video_id)
     _stderr("Gemini解析中…（動画が長いと数分かかります）")
     used_digest = args.digest
 
     try:
         try:
             markdown, finish_reason = call_gemini(
-                args.url,
+                api_url,
                 args.model,
                 api_key,
                 args.extra,
@@ -494,7 +506,7 @@ def _run(argv: list[str] | None) -> int:
                 "逐語の文字起こしが拒否されたため、要点形式で自動的に再解析します。"
             )
             markdown, finish_reason = call_gemini(
-                args.url,
+                api_url,
                 args.model,
                 api_key,
                 args.extra,
@@ -511,7 +523,7 @@ def _run(argv: list[str] | None) -> int:
                 )
                 try:
                     markdown, finish_reason = call_gemini(
-                        args.url,
+                        api_url,
                         args.model,
                         api_key,
                         args.extra,
