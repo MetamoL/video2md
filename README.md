@@ -56,6 +56,20 @@ python video2md.py "https://youtu.be/jNQXAC9IVRw" -o notes --model gemini-3.6-fl
 APIがHTTP 429、500、502、503、504を返した場合と接続に失敗した場合は、20秒後に1回だけ再試行します。
 再試行と要点形式への自動フォールバックが重なると、最悪の場合は数十分かかることがあります。
 
+## MCPサーバーとして使う
+
+ローカル型MCPサーバーとして登録すると、AIエージェントとの会話からvideo2mdを直接呼び出せます。
+次の `C:\path\to\video2md\mcp_server.py` は、利用者の環境にあるファイルの絶対パスへ読み替えてください。
+
+```powershell
+claude mcp add video2md -- python C:\path\to\video2md\mcp_server.py
+```
+
+登録後は、会話で「この動画の内容を踏まえて説明して https://youtu.be/VIDEO_ID」のように頼むだけです。
+サーバーのホスティングは不要で、費用が発生し得るのはローカル実行から利用するGemini APIだけです。
+
+長い動画は完了まで数分かかるため、MCPクライアント側のタイムアウトを十分長く設定してください（Claude Codeでは環境変数 `MCP_TIMEOUT` を使用します）。
+
 ## トラブルシューティング
 
 ### RECITATIONで文字起こしを取得できない

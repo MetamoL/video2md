@@ -68,6 +68,18 @@ python video2md.py "https://youtu.be/jNQXAC9IVRw" --lang en
 
 Files are named after the YouTube title. Existing files are preserved by adding suffixes such as `-2` and `-3`.
 
+## Use as an MCP server
+
+Register the local MCP server to call video2md directly from a conversation with an AI agent. Replace `C:\path\to\video2md\mcp_server.py` below with the absolute path on your system.
+
+```powershell
+claude mcp add video2md -- python C:\path\to\video2md\mcp_server.py
+```
+
+After registration, ask something like “Explain this topic based on the video https://youtu.be/VIDEO_ID.” No hosting is required; the only potential cost is the Gemini API used by the local process.
+
+Long videos can take several minutes, so set a sufficiently long timeout in your MCP client (Claude Code uses the `MCP_TIMEOUT` environment variable).
+
 ## Notes
 
 - Long videos can take several minutes to process.
