@@ -59,6 +59,9 @@ APIがHTTP 429、500、502、503、504を返した場合と接続に失敗した
 ## MCPサーバーとして使う
 
 ローカル型MCPサーバーとして登録すると、AIエージェントとの会話からvideo2mdを直接呼び出せます。
+
+### Claude Code
+
 次の `C:\path\to\video2md\mcp_server.py` は、利用者の環境にあるファイルの絶対パスへ読み替えてください。
 
 ```powershell
@@ -69,6 +72,70 @@ claude mcp add video2md -- python C:\path\to\video2md\mcp_server.py
 サーバーのホスティングは不要で、費用が発生し得るのはローカル実行から利用するGemini APIだけです。
 
 長い動画は完了まで数分かかるため、MCPクライアント側のタイムアウトを十分長く設定してください（Claude Codeでは環境変数 `MCP_TIMEOUT` を使用します）。
+
+### Codex CLIとアプリ
+
+Codex CLI、TUI、IDE拡張、ChatGPTデスクトップアプリは、同じCodexホストのMCP設定を共有します。
+設定の仕様は[公式のMCPドキュメント](https://learn.chatgpt.com/docs/extend/mcp)を参照してください。
+
+`--env` に実値を渡すとAPIキーがコマンド履歴やCodexの設定へ残り得るため避け、既に前の「前提」節で設定した `GEMINI_API_KEY` を `env_vars` でサーバーへ引き継ぐ方法を使います。
+
+Windows PowerShellでは、次の登録コマンドを実行します。
+
+```powershell
+codex mcp add video2md -- python C:\path\to\video2md\mcp_server.py
+```
+
+macOSまたはLinuxでは、次のように実行します。
+
+```bash
+codex mcp add video2md -- python /absolute/path/to/video2md/mcp_server.py
+```
+
+登録後、Codexの設定ファイル（Windowsは `$env:USERPROFILE\.codex\config.toml`、macOSまたはLinuxは `~/.codex/config.toml`）に、登録したサーバーの設定を追加または編集します。
+`env_vars` は、Codexを起動した環境にあるAPIキーだけをサーバーへ渡します。
+Windowsの例では、TOMLの文字列で扱いやすいようにパス区切りへ `/` を使っています。
+
+Windows:
+
+```toml
+[mcp_servers.video2md]
+command = "python"
+args = ["C:/path/to/video2md/mcp_server.py"]
+env_vars = ["GEMINI_API_KEY"]
+tool_timeout_sec = 1800
+```
+
+macOSまたはLinux:
+
+```toml
+[mcp_servers.video2md]
+command = "python"
+args = ["/absolute/path/to/video2md/mcp_server.py"]
+env_vars = ["GEMINI_API_KEY"]
+tool_timeout_sec = 1800
+```
+
+`tool_timeout_sec` の既定値は60秒ですが、video2mdは長い動画の処理に数分かかり、再試行や要点形式へのフォールバックが重なると数十分かかることがあります。
+上の例では30分に設定しています。
+動画がそれ以上かかる環境では、`1800` を必要な秒数へ増やしてください。
+
+設定を確認するには、次を実行します。
+
+```text
+codex mcp list
+```
+
+Codex TUIまたはアプリの入力欄で `/mcp` を実行すると、接続済みのMCPサーバーを確認できます。
+設定変更後に一覧へ反映されない場合は、TUIまたはアプリを再起動してください（IDE拡張は拡張機能を再起動します）。
+
+接続後は、たとえば次のように自然文で依頼できます。
+
+```text
+この動画の内容を踏まえて、要点を日本語で説明して https://youtu.be/VIDEO_ID
+```
+
+サーバーが公開するツール名は `video_to_markdown` です。
 
 ## トラブルシューティング
 
@@ -107,6 +174,14 @@ python video2md.py "https://youtu.be/VIDEO_ID" --model NEW_MODEL_NAME
 | 4 | Gemini APIまたはネットワークの障害 |
 | 5 | RECITATIONなどのモデル拒否により本文を取得できない |
 | 130 | ユーザーによる中断 |
+
+## 開発者向け検証
+
+リポジトリルートで次を実行します。
+
+```powershell
+python -m unittest discover -s test -q
+```
 
 ## 出力例
 

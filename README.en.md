@@ -72,6 +72,8 @@ Files are named after the YouTube title. Existing files are preserved by adding 
 
 Register the local MCP server to call video2md directly from a conversation with an AI agent. Replace `C:\path\to\video2md\mcp_server.py` below with the absolute path on your system.
 
+### Claude Code
+
 ```powershell
 claude mcp add video2md -- python C:\path\to\video2md\mcp_server.py
 ```
@@ -79,6 +81,70 @@ claude mcp add video2md -- python C:\path\to\video2md\mcp_server.py
 After registration, ask something like “Explain this topic based on the video `https://youtu.be/VIDEO_ID`.” No hosting is required; the only potential cost is the Gemini API used by the local process.
 
 Long videos can take several minutes, so set a sufficiently long timeout in your MCP client (Claude Code uses the `MCP_TIMEOUT` environment variable).
+
+### Codex CLI and apps
+
+Codex CLI, the TUI, the IDE extension, and the ChatGPT desktop app share MCP configuration on the same Codex host.
+See the [official MCP documentation](https://learn.chatgpt.com/docs/extend/mcp) for the configuration reference.
+
+Avoid passing a real value to `--env`, because the API key can remain in shell history and Codex configuration; use `env_vars` below to forward the `GEMINI_API_KEY` configured in the previous section instead.
+
+On Windows PowerShell, register the server with:
+
+```powershell
+codex mcp add video2md -- python C:\path\to\video2md\mcp_server.py
+```
+
+On macOS or Linux, use:
+
+```bash
+codex mcp add video2md -- python /absolute/path/to/video2md/mcp_server.py
+```
+
+Then add or edit the server entry in the Codex configuration file (Windows: `$env:USERPROFILE\.codex\config.toml`; macOS or Linux: `~/.codex/config.toml`).
+`env_vars` forwards only the API key from the environment in which Codex was started.
+The Windows example uses `/` as the path separator so the path is a valid TOML string without escaped backslashes.
+
+Windows:
+
+```toml
+[mcp_servers.video2md]
+command = "python"
+args = ["C:/path/to/video2md/mcp_server.py"]
+env_vars = ["GEMINI_API_KEY"]
+tool_timeout_sec = 1800
+```
+
+macOS or Linux:
+
+```toml
+[mcp_servers.video2md]
+command = "python"
+args = ["/absolute/path/to/video2md/mcp_server.py"]
+env_vars = ["GEMINI_API_KEY"]
+tool_timeout_sec = 1800
+```
+
+Codex's default `tool_timeout_sec` is 60 seconds, but video2md can take several minutes for a long video and tens of minutes when retries and the automatic key-points fallback overlap.
+The examples use 30 minutes.
+Increase `1800` if processing in your environment takes longer.
+
+Check the registration with:
+
+```text
+codex mcp list
+```
+
+In the Codex TUI or app composer, enter `/mcp` to see connected MCP servers.
+If a configuration change is not reflected, restart the TUI or app (for the IDE extension, restart the extension).
+
+Once connected, ask in natural language, for example:
+
+```text
+Explain this video based on its content and summarize the key points: https://youtu.be/VIDEO_ID
+```
+
+The server exposes one tool named `video_to_markdown`.
 
 ## Notes
 
@@ -118,6 +184,14 @@ On exit code 0, stdout contains exactly one machine-readable line: the absolute 
 | 4 | Gemini API or network failure |
 | 5 | Model refusal, including RECITATION when no body can be recovered |
 | 130 | Interrupted by the user |
+
+## Development checks
+
+From the repository root, run:
+
+```bash
+python -m unittest discover -s test -q
+```
 
 ## License
 
