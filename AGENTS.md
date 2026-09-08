@@ -1,7 +1,8 @@
-# AGENTS.md（Codex用ルーティング）
+<!-- codex-environment: 2026-09 -->
+# video2md
 
-正本は `CLAUDE.md` と `README.md`（日本語・英語サブ=`README.en.md`）。このリポジトリは単体CLIツール（Python 3.12・標準ライブラリのみ）。
+YouTube URLをGeminiで解析しMarkdownへ保存するPython CLIとMCPサーバー。`video2md.py` が解析・保存、`mcp_server.py` が公開ツール、`md_check.py` が出力検査。インターフェースは README、境界条件は `test/`。
 
-- 動画の内容を参照したいとき: リポジトリルートで `python video2md.py "<YouTubeのURL>"` を実行し、`out/` に生成されたMarkdownを読む
-- 実装担当は `test/` 配下を編集しない。受入テスト担当がテストを管理する
-- 逐語の文字起こしが拒否される動画は `--digest` を使う。終了コードは 0=成功、1=保存失敗、2=引数またはURL不正、3=APIキー不正、4=APIまたは通信障害、5=モデル拒否、130=中断
+Python 3.12以降の標準ライブラリで実行する設計を保つ。オフライン検証は `python -m unittest discover -s test`。API実行は認証・課金を伴うのでfixture/mocksと区別し、依頼なしに動画を送信しない。既存出力の連番による上書き回避、エラー時の保存、入力URL検証、MCP応答形式を確認する。
+
+環境変数の秘密値を表示・コミットしない。製品が使うGeminiモデルを、この開発環境のAstra設定変更に合わせて書き換えない。
