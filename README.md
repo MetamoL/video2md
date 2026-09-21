@@ -28,13 +28,13 @@ Whisper系の文字起こしツールが主に音声を扱うのに対し、vide
 
 APIキーは[Google AI Studio](https://aistudio.google.com/apikey)で取得し、`GEMINI_API_KEY` として設定します。APIの利用にはクォータや料金が発生する場合があります。
 
-Windows PowerShell:
+Windowsでは、秘密値をPowerShellの履歴やコマンドラインに残しにくいユーザー環境変数の画面から設定する方法を推奨します。
 
-```powershell
-setx GEMINI_API_KEY "あなたのAPIキー"
-```
+1. `Win + R` を押し、`rundll32.exe sysdm.cpl,EditEnvironmentVariables` を実行します。
+2. 「ユーザー環境変数」で新しい変数を作り、名前を `GEMINI_API_KEY`、値をAPIキーにします。
+3. 設定後にCodexデスクトップアプリを完全に終了して再起動します。
 
-`setx` の実行後は、新しいターミナルを開いてください。video2mdは、実行中のプロセスに環境変数が反映されていない場合、Windowsのユーザー環境変数も確認します。
+PowerShellの `setx GEMINI_API_KEY "..."` でも設定できますが、入力値が履歴やプロセス一覧に残る可能性があるため、秘密値の設定には上記の画面を優先してください。`setx` を使った場合も、新しいターミナルとCodexデスクトップアプリを起動し直してください。video2mdは、実行中のプロセスに環境変数が反映されていない場合、Windowsのユーザー環境変数も確認します。
 
 macOSまたはLinux:
 
@@ -127,6 +127,18 @@ tool_timeout_sec = 1800
 ```
 
 `tool_timeout_sec` の既定値は60秒ですが、video2mdは長い動画の処理に数分かかり、再試行や要点形式へのフォールバックが重なるとさらに時間がかかることがあります。必要に応じて `1800` を増やしてください。
+
+### Codexデスクトップアプリでの再読み込みと確認
+
+Codexデスクトップアプリ、Codex CLI、IDE拡張は同じCodexホストのMCP設定を共有します。設定ファイルを変更した場合は、アプリの設定画面で「MCP servers」を開き、保存後に「Restart」を実行してください。APIキーをユーザー環境変数へ追加した場合も、Codexプロセスが新しい環境を受け取るよう、アプリを完全に終了してから再起動します。
+
+再起動後、入力欄で `/mcp` を実行し、`video2md` が接続済みで `video_to_markdown` が表示されることを確認します。続けて、次の条件で実動画を1本だけ実行します。
+
+```text
+video2md の video_to_markdown を使い、指定したYouTube URLを lang=ja、digest=true で解析してください。
+```
+
+成功時はツール応答に保存先とMarkdown本文が返り、`out` フォルダーに新しい `.md` ファイルが作成されます。同じ動画を再実行しても既存ファイルを上書きせず、連番のファイル名になります。APIキー未設定時は、秘密値を表示せず設定案内だけを返します。
 
 設定を確認するには、次を実行します。
 
