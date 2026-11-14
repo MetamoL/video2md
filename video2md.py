@@ -9,7 +9,10 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import time
 from typing import Any
 from urllib import error, parse, request
@@ -57,6 +60,126 @@ Visual information shown on screen (slides, charts, demos, code, captions, scene
 
 ## Key points
 Summarize the speech as key points (not verbatim), as bullet points with [MM:SS] timestamps."""
+
+
+SUBTITLE_NOTE = {
+    "ja": (
+        "参考資料：以下は投稿者が付けた字幕（タイムスタンプ付き）。音声の聞き取りより正確なことが多い。"
+        "発話の内容・固有名詞・型番・数字は字幕と照合し、食い違う場合は字幕に合わせる。"
+        "字幕に無い視覚情報は映像から補う。出力の構成は上の指示に従う。"
+    ),
+    "en": (
+        "Reference: below are the uploader-provided subtitles with timestamps. "
+        "They are usually more accurate than speech recognition. "
+        "Check speech content, proper nouns, model numbers, and figures against them "
+        "and follow the subtitles when they disagree. "
+        "Fill in visual information the subtitles lack from the video. "
+        "Keep the output structure specified above."
+    ),
+}
+SUBTITLE_MAX_CHARS = 200_000
+_CUE_TIME = re.compile(r"^(?:(\d+):)?(\d{1,2}):(\d{2})[.,]\d{1,3}\s+-->")
+
+
+def parse_subtitles(text: str) -> str:
+    """WebVTT/SRTの本文を「[MM:SS] 文」の行にする。"""
+
+    lines: list[str] = []
+    stamp: str | None = None
+    previous = ""
+    for raw in text.splitlines():
+        line = raw.strip()
+        match = _CUE_TIME.match(line)
+        if match:
+            hours, minutes, seconds = match.groups()
+            total_minutes = int(hours or 0) * 60 + int(minutes)
+            stamp = f"[{total_minutes:02d}:{seconds}]"
+            continue
+        if stamp is None or not line:
+            continue
+        cleaned = re.sub(r"<[^>]*>", "", line).strip()
+        # 自動字幕のローリング表示は同じ行が繰り返されるので、直前と同じ行は捨てる
+        if not cleaned or cleaned == previous:
+            continue
+        lines.append(f"{stamp} {cleaned}")
+        previous = cleaned
+    return "\n".join(lines)
+
+
+def _yt_dlp_command() -> list[str] | None:
+    path = shutil.which("yt-dlp")
+    if path:
+        return [path]
+    try:
+        import importlib.util
+
+        if importlib.util.find_spec("yt_dlp") is not None:
+            return [sys.executable, "-m", "yt_dlp"]
+    except (ImportError, ValueError):
+        pass
+    return None
+
+
+def pick_subtitle_lang(available: list[str], original: str | None, lang: str) -> str | None:
+    """発話の元言語の字幕を優先し、無ければ出力言語の字幕を選ぶ。"""
+
+    def find(code: str | None) -> str | None:
+        if not code:
+            return None
+        for item in available:
+            if item.lower() == code.lower():
+                return item
+        base = code.split("-")[0].lower()
+        for item in available:
+            if item.split("-")[0].lower() == base:
+                return item
+        return None
+
+    return find(original) or find(lang)
+
+
+def fetch_uploader_subtitles(url: str, lang: str) -> tuple[str, str] | None:
+    """yt-dlpがあれば投稿者の字幕（自動生成は除く）を取り、(言語, 本文) を返す。"""
+
+    command = _yt_dlp_command()
+    if command is None:
+        return None
+    common = ["--skip-download", "--no-warnings", "--no-playlist"]
+    run_options: dict[str, Any] = {
+        "capture_output": True,
+        "timeout": 120,
+        "encoding": "utf-8",
+        "errors": "replace",
+    }
+    try:
+        info_run = subprocess.run([*command, *common, "-J", url], **run_options)
+        if info_run.returncode != 0:
+            _stderr("字幕の情報を取得できなかったため、字幕なしで解析します。")
+            return None
+        info = json.loads(info_run.stdout)
+        subtitles = info.get("subtitles") or {}
+        available = [code for code in subtitles if code != "live_chat"]
+        original = info.get("language") if isinstance(info.get("language"), str) else None
+        chosen = pick_subtitle_lang(available, original, lang)
+        if chosen is None:
+            return None
+        with tempfile.TemporaryDirectory() as tmp:
+            subprocess.run(
+                [
+                    *command, *common, "--write-subs", "--sub-langs", chosen,
+                    "--sub-format", "vtt/srt/best", "-o", str(Path(tmp) / "subs.%(ext)s"), url,
+                ],
+                **run_options,
+            )
+            files = sorted(Path(tmp).glob("subs.*"))
+            if not files:
+                _stderr("字幕をダウンロードできなかったため、字幕なしで解析します。")
+                return None
+            text = parse_subtitles(files[0].read_text(encoding="utf-8", errors="replace"))
+    except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError, AttributeError) as exc:
+        _stderr(f"字幕の取得に失敗したため、字幕なしで解析します: {exc}")
+        return None
+    return (chosen, text) if text else None
 
 
 class EmptyResponseError(ValueError):
@@ -149,6 +272,7 @@ def build_payload(
     extra: str | None,
     lang: str = "ja",
     digest: bool = False,
+    subtitles: str | None = None,
 ) -> dict[str, Any]:
     """Gemini generateContent用のリクエスト本文を組み立てる。"""
 
@@ -160,16 +284,13 @@ def build_payload(
         raise ValueError(f"未対応の出力言語です: {lang}")
     if extra:
         prompt += "\n" + extra
-    return {
-        "contents": [
-            {
-                "parts": [
-                    {"file_data": {"file_uri": url}},
-                    {"text": prompt},
-                ]
-            }
-        ]
-    }
+    parts: list[dict[str, Any]] = [
+        {"file_data": {"file_uri": url}},
+        {"text": prompt},
+    ]
+    if subtitles:
+        parts.append({"text": f"{SUBTITLE_NOTE[lang]}\n\n{subtitles[:SUBTITLE_MAX_CHARS]}"})
+    return {"contents": [{"parts": parts}]}
 
 
 def extract_markdown(resp: dict[str, Any]) -> tuple[str, str]:
@@ -290,13 +411,14 @@ def call_gemini(
     extra: str | None,
     lang: str = "ja",
     digest: bool = False,
+    subtitles: str | None = None,
 ) -> tuple[str, str]:
     """Gemini APIを1モード分だけ呼び、本文と終了理由を返す。"""
 
     try:
         endpoint = f"{API_ROOT}/{parse.quote(model, safe='')}:generateContent"
         data = json.dumps(
-            build_payload(url, extra, lang, digest), ensure_ascii=False
+            build_payload(url, extra, lang, digest, subtitles), ensure_ascii=False
         ).encode("utf-8")
         req = request.Request(
             endpoint,
@@ -389,6 +511,18 @@ def _parser() -> argparse.ArgumentParser:
         help="逐語の文字起こしではなく要点を出力 / output key points",
     )
     parser.add_argument("--extra", help="Geminiへの追加指示")
+    subs = parser.add_mutually_exclusive_group()
+    subs.add_argument(
+        "--subs",
+        type=Path,
+        metavar="FILE",
+        help="照合に使う字幕ファイル（.vtt/.srt）/ subtitle file for cross-checking",
+    )
+    subs.add_argument(
+        "--no-subs",
+        action="store_true",
+        help="yt-dlpによる投稿者字幕の自動取得をしない / skip fetching subtitles",
+    )
     return parser
 
 
@@ -420,6 +554,7 @@ def _build_document(
     markdown: str,
     finish_reason: str,
     digest_note: str | None,
+    subtitle_note: str | None = None,
 ) -> str:
     if lang == "en":
         metadata = [
@@ -429,6 +564,8 @@ def _build_document(
         ]
         if digest_note:
             metadata.append(digest_note)
+        if subtitle_note:
+            metadata.append(f"- Subtitles: {subtitle_note}")
         truncated = (
             f"> ⚠️ This output was truncated (finishReason: {finish_reason})"
         )
@@ -440,6 +577,8 @@ def _build_document(
         ]
         if digest_note:
             metadata.append(digest_note)
+        if subtitle_note:
+            metadata.append(f"- 字幕: {subtitle_note}")
         truncated = (
             f"> ⚠️ この出力は途中で打ち切られています（finishReason: {finish_reason}）"
         )
@@ -483,7 +622,34 @@ def _run(argv: list[str] | None) -> int:
         return 2
     api_url = canonical_video_url(video_id)
 
+    subtitles: str | None = None
+    subtitle_note: str | None = None
+    if args.subs is not None:
+        try:
+            subtitles = parse_subtitles(args.subs.read_text(encoding="utf-8-sig", errors="replace"))
+        except OSError as exc:
+            _stderr(f"エラー: 字幕ファイルを読めません: {exc}")
+            return 2
+        if not subtitles:
+            _stderr("エラー: 字幕ファイルに字幕の行が見つかりません（.vtt/.srt を指定してください）。")
+            return 2
+        subtitle_note = (
+            f"cross-checked with file {args.subs.name}"
+            if args.lang == "en"
+            else f"指定ファイル {args.subs.name} と照合"
+        )
+
     api_key = get_api_key()
+    if subtitles is None and not args.no_subs:
+        _stderr("投稿者の字幕を確認中…")
+        fetched = fetch_uploader_subtitles(api_url, args.lang)
+        if fetched is not None:
+            sub_lang, subtitles = fetched
+            subtitle_note = (
+                f"cross-checked with uploader subtitles ({sub_lang})"
+                if args.lang == "en"
+                else f"投稿者の字幕（{sub_lang}）と照合"
+            )
     _stderr("動画タイトルを取得中…")
     title = fetch_video_title(api_url, video_id)
     _stderr("Gemini解析中…（動画が長いと数分かかります）")
@@ -498,6 +664,7 @@ def _run(argv: list[str] | None) -> int:
                 args.extra,
                 args.lang,
                 digest=args.digest,
+                subtitles=subtitles,
             )
         except EmptyResponseError as exc:
             if args.digest or exc.finish_reason != "RECITATION":
@@ -512,6 +679,7 @@ def _run(argv: list[str] | None) -> int:
                 args.extra,
                 args.lang,
                 digest=True,
+                subtitles=subtitles,
             )
             used_digest = True
         else:
@@ -529,6 +697,7 @@ def _run(argv: list[str] | None) -> int:
                         args.extra,
                         args.lang,
                         digest=True,
+                        subtitles=subtitles,
                     )
                     used_digest = True
                 except EmptyResponseError as exc:
@@ -573,6 +742,7 @@ def _run(argv: list[str] | None) -> int:
         markdown,
         finish_reason,
         digest_note,
+        subtitle_note,
     )
     output = _save_document(outdir, sanitize_filename(title), video_id, document)
     if output is None:

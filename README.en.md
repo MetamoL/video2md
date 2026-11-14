@@ -22,7 +22,7 @@ See [examples/](examples/) — including [me-at-the-zoo.en.md](examples/me-at-th
 
 - Python 3.12 or later
 - A Gemini API key
-- No third-party Python packages
+- No third-party Python packages (optional: if [yt-dlp](https://github.com/yt-dlp/yt-dlp) is installed, uploader subtitles are used for cross-checking)
 
 The tool can run with the Gemini API free tier, subject to its current availability and quota limits.
 
@@ -65,6 +65,10 @@ python video2md.py "https://youtu.be/jNQXAC9IVRw" --lang en
 | `--lang` | Output language: `ja` or `en` | `ja` |
 | `--digest` | Summarize speech as timestamped key points instead of a verbatim transcript | Off |
 | `--extra` | Additional instruction appended to the selected prompt | None |
+| `--subs` | Subtitle file (`.vtt` / `.srt`) used for cross-checking; disables automatic fetching | None |
+| `--no-subs` | Do not fetch uploader subtitles with yt-dlp | Off |
+
+Gemini analyzes the audio and visuals directly. If `yt-dlp` is installed (`pip install yt-dlp`), video2md also fetches the uploader-provided subtitles (preferring the original spoken language, then `--lang`) and passes them to Gemini as a reference for speech, proper nouns, model numbers, and figures. Auto-generated YouTube captions are not used. Without yt-dlp or uploader subtitles, analysis runs as before. When subtitles are used, the output header records it (e.g. `- Subtitles: cross-checked with uploader subtitles (en)`).
 
 Files are named after the YouTube title. Existing files are preserved by adding suffixes such as `-2` and `-3`.
 

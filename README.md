@@ -24,7 +24,7 @@ Whisper系の文字起こしツールが主に音声を扱うのに対し、vide
 
 - Python 3.12以降
 - Gemini APIキー
-- 追加のPythonパッケージは不要
+- 追加のPythonパッケージは不要（[yt-dlp](https://github.com/yt-dlp/yt-dlp) があれば、投稿者の字幕を照合に使います。任意）
 
 APIキーは[Google AI Studio](https://aistudio.google.com/apikey)で取得し、`GEMINI_API_KEY` として設定します。APIの利用にはクォータや料金が発生する場合があります。
 
@@ -53,7 +53,7 @@ python video2md.py "https://www.youtube.com/watch?v=VIDEO_ID"
 省略時は `video2md.py` と同じ場所の `out` フォルダーに、動画タイトルを使ったMarkdownファイルを保存します。同名ファイルがある場合は `-2`、`-3` のような番号を付け、既存ファイルを上書きしません。
 
 ```text
-python video2md.py <URL> [-o OUTDIR] [--model MODEL] [--lang {ja,en}] [--digest] [--extra "追加指示"]
+python video2md.py <URL> [-o OUTDIR] [--model MODEL] [--lang {ja,en}] [--digest] [--extra "追加指示"] [--subs FILE | --no-subs]
 ```
 
 | オプション | 既定値 | 説明 |
@@ -63,12 +63,24 @@ python video2md.py <URL> [-o OUTDIR] [--model MODEL] [--lang {ja,en}] [--digest]
 | `--lang` | `ja` | 生成する文書の言語。`ja` または `en`。文字起こしはどちらの場合も元の発話言語を維持します。 |
 | `--digest` | なし | 逐語の文字起こしではなく、発話をタイムスタンプ付きの要点としてまとめます。 |
 | `--extra` | なし | 選択した言語の解析プロンプト末尾に追加する任意の指示です。 |
+| `--subs` | なし | 照合に使う字幕ファイル（`.vtt` / `.srt`）。指定すると自動取得はしません。 |
+| `--no-subs` | なし | yt-dlpによる投稿者字幕の自動取得をしません。 |
 
 例:
 
 ```powershell
 python video2md.py "https://youtu.be/jNQXAC9IVRw" -o notes --model gemini-3.6-flash --lang ja --extra "専門用語は英語のまま記載する"
 ```
+
+### 字幕との照合
+
+Geminiは動画の音声と映像を直接解析します。これに加えて、投稿者が付けた字幕があれば、固有名詞・型番・数字・発話の照合用としてGeminiに渡し、食い違う場合は字幕に合わせるよう指示します。
+
+- `yt-dlp` がインストールされていれば（`pip install yt-dlp`）、投稿者の字幕を自動で取得します。発話の元の言語の字幕を優先し、無ければ `--lang` の言語を使います。
+- YouTubeの自動生成字幕は使いません（Geminiの聞き取りより精度が低いことが多いため）。
+- yt-dlpが無い、投稿者の字幕が無い、取得に失敗した場合は、これまでどおり字幕なしで解析します。
+- 字幕を使った場合は、出力の冒頭に `- 字幕: 投稿者の字幕（en）と照合` のように記録します。
+- MCPサーバーから呼んだ場合も、yt-dlpがあれば同じように自動取得します。
 
 長い動画の解析には数分かかることがあります。Gemini APIの一時的なエラー（HTTP `429`、`500`、`502`、`503`、`504`）や接続失敗が起きた場合は、20秒後に1回だけ再試行します。
 

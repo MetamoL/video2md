@@ -323,6 +323,72 @@ class TestMainArgHandling(unittest.TestCase):
             rc = video2md.main(["https://example.com/watch?v=x"])
         self.assertEqual(rc, 2)
 
+    def test_missing_subs_file_returns_2_before_api_key(self):
+        buf = io.StringIO()
+        with redirect_stderr(buf), mock.patch.object(video2md, "get_api_key") as key:
+            rc = video2md.main(["https://youtu.be/jNQXAC9IVRw", "--subs", "no-such-file.vtt"])
+        self.assertEqual(rc, 2)
+        key.assert_not_called()
+
+    def test_subs_and_no_subs_are_exclusive(self):
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            video2md.main(["https://youtu.be/jNQXAC9IVRw", "--subs", "a.vtt", "--no-subs"])
+
+
+class TestSubtitles(unittest.TestCase):
+    URL = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+
+    def test_parse_vtt_strips_tags_and_rolling_duplicates(self):
+        vtt = (
+            "WEBVTT\nKind: captions\nLanguage: en\n\n"
+            "00:00:27.103 --> 00:00:29.678\nGood <c>morning</c>.\n\n"
+            "00:00:29.702 --> 00:00:31.105 align:start\nGood morning.\nHow are you?\n"
+        )
+        self.assertEqual(
+            video2md.parse_subtitles(vtt),
+            "[00:27] Good morning.\n[00:29] How are you?",
+        )
+
+    def test_parse_srt_with_hours(self):
+        srt = "1\n01:02:03,500 --> 01:02:05,000\n価格は23,730円\n"
+        self.assertEqual(video2md.parse_subtitles(srt), "[62:03] 価格は23,730円")
+
+    def test_parse_non_subtitle_text_is_empty(self):
+        self.assertEqual(video2md.parse_subtitles("just text\nno cues"), "")
+
+    def test_pick_prefers_original_language(self):
+        self.assertEqual(video2md.pick_subtitle_lang(["en", "ja", "fr"], "ja", "en"), "ja")
+
+    def test_pick_matches_region_variant(self):
+        self.assertEqual(video2md.pick_subtitle_lang(["en-US", "fr"], "en", "ja"), "en-US")
+
+    def test_pick_falls_back_to_output_lang_then_none(self):
+        self.assertEqual(video2md.pick_subtitle_lang(["ja", "fr"], None, "ja"), "ja")
+        self.assertIsNone(video2md.pick_subtitle_lang(["fr", "de"], "ko", "ja"))
+
+    def test_payload_without_subtitles_has_two_parts(self):
+        parts = video2md.build_payload(self.URL, None)["contents"][0]["parts"]
+        self.assertEqual(len(parts), 2)
+
+    def test_payload_with_subtitles_adds_reference_part(self):
+        parts = video2md.build_payload(self.URL, None, subtitles="[00:01] hi")["contents"][0]["parts"]
+        self.assertEqual(len(parts), 3)
+        self.assertIn("投稿者が付けた字幕", parts[2]["text"])
+        self.assertTrue(parts[2]["text"].endswith("[00:01] hi"))
+
+    def test_fetch_returns_none_without_yt_dlp(self):
+        with mock.patch.object(video2md, "_yt_dlp_command", return_value=None), \
+                mock.patch.object(video2md.subprocess, "run") as run:
+            self.assertIsNone(video2md.fetch_uploader_subtitles(self.URL, "ja"))
+        run.assert_not_called()
+
+    def test_fetch_skips_when_only_auto_captions(self):
+        info = mock.Mock(returncode=0, stdout='{"language": "ja", "subtitles": {"live_chat": []}}')
+        with mock.patch.object(video2md, "_yt_dlp_command", return_value=["yt-dlp"]), \
+                mock.patch.object(video2md.subprocess, "run", return_value=info) as run:
+            self.assertIsNone(video2md.fetch_uploader_subtitles(self.URL, "ja"))
+        self.assertEqual(run.call_count, 1)
+
 
 if __name__ == "__main__":
     unittest.main()
