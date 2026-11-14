@@ -14,14 +14,14 @@ import video2md
 
 
 PROTOCOL_VERSION = "2025-06-18"
-SERVER_INFO = {"name": "video2md", "version": "1.0.0"}
+SERVER_INFO = {"name": "video2md", "version": "1.1.0"}
 TOOL_NAME = "video_to_markdown"
 
 Runner = Callable[[dict[str, Any]], dict[str, Any]]
 
 TOOL = {
     "name": TOOL_NAME,
-    "description": "YouTube動画の音声と映像を解析し、Markdownとして保存します。",
+    "description": "YouTube動画の音声と映像を解析し、Markdownとして保存します。yt-dlpがあれば投稿者の字幕とも照合します。",
     "inputSchema": {
         "type": "object",
         "properties": {

@@ -183,7 +183,7 @@ On exit code 0, stdout contains exactly one machine-readable line: the absolute 
 | --- | --- |
 | 0 | Success, including success with warnings; stdout is the absolute output path |
 | 1 | Saving failed; stdout is the full Markdown document |
-| 2 | Invalid arguments or YouTube URL |
+| 2 | Invalid arguments, YouTube URL, or `--subs` subtitle file |
 | 3 | API key missing or malformed |
 | 4 | Gemini API or network failure |
 | 5 | Model refusal, including RECITATION when no body can be recovered |
